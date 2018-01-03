@@ -17,7 +17,7 @@ const Parser = require('parse5')
 const http = require('http')
 const { URL } = require('url')
 
-class Bot {
+class HTTPRequest {
   constructor(url) {
     this.url = url
   }
@@ -35,42 +35,50 @@ class Bot {
   }
 }
 
-class Exclusions extends Bot {
+class Exclusions extends HTTPRequest {
   constructor(url) {
     super(url)
+
+    this.rules = this._request(new URL(this.url)).then(this._parse)
+    this.allowed = this.rules.then(file => this.getField(file, 'allow'))
+    this.disallowed = this.rules.then(file => this.getField(file, 'disallow'))
+    this.delay = this.rules.then(file => parseInt(this.getField(file, 'crawl-delay', 0), 10))
   }
 
-  
+  _parse(file) {
+    const uaStart = file.search(/user\-agent:\ ?\*/gi)
+    const uaNext = file.toLowerCase().indexOf('user-agent', uaStart + 1)
+    const uaEnd = uaNext === -1 ? file.length : uaNext
+
+    return file.substring(uaStart, uaEnd)
+      .replace(/#.*$/gm, '') // Remove comments
+      .split('\n')           // Split each line
+      .map(x => x.trim())    // Remove whitespace
+      .filter(x => x)        // Remove excess newlines
+  }
+
+  getField(rules, field, defaultValue) {
+    const result = rules.filter(line => new RegExp(`^${field}:\ +?`, 'i').test(line))
+    .map(line => line.split(/:\ ?/)[1])
+
+    return !result.length && defaultValue != null ? defaultValue : result
+  }
+
+  isAllowed(path) {
+    return Promise.all([this.allowed, this.disallowed])
+      .then(([allowed, disallowed]) =>
+        !disallowed.some(rule => rule.indexOf(path) > -1) || allowed.indexOf(path) > -1
+      )
+  }
 }
 
-class Spider extends Bot {
+class Spider extends HTTPRequest {
   constructor(url) {
     super(url)
-    this.getExclusions = this._getExclusions()
-    this.getExclusions.then(console.log)
+
+    this.exclusions = new Exclusions(Path.join(url, 'robots.txt'))
   }
 
-  _getMyExclusions(rules) {
-    const uaStart = rules.search(/user\-agent:\ ?\*/gi)
-    const uaNext = rules.toLowerCase().indexOf('user-agent', uaStart + 1)
-    const uaEnd = uaNext === -1 ? rules.length : uaNext
-    
-    return rules.substring(uaStart, uaEnd)
-  }
-
-  _getExclusions(url) {
-    const exclusionsRequest = this._request(new URL(Path.join(this.baseUrl, '/robots.txt')))
-    return exclusionsRequest.then(rules => {
-      const formattedRules = this._getMyExclusions(rules)
-        .replace(/#.*$/gm, '') // Remove comments
-        .split('\n')           // Split each line
-        .map(x => x.trim())    // Remove whitespace
-        .filter(x => x)        // Remove excess newlines
-
-      const disallowed = formattedRules.filter(line => line.split(/:\ ?/)[0].toLowerCase() === 'disallow')
-    })
-  }
-  
   _isLink(str) { return str.name == 'src' || str.name == 'href' }
 
   _extract(node, attrs = node.attrs || [], children = node.childNodes || []) {
@@ -82,21 +90,26 @@ class Spider extends Bot {
     const defaultOpts = {
       depth: 1,
       page: '/',
-      ignore: []
+      ignore: [],
+      delay: 0
     }
 
     const opts = Object.assign({}, defaultOpts, options)
     
     if (!opts.depth || opts.ignore.includes(opts.page)) return Promise.resolve({})
 
-    const thisPage = new URL(Path.join(this.baseUrl, opts.page))
-    return this._request(thisPage)
+    const thisPage = new URL(Path.join(this.url, opts.page))
+    const request = new Promise((resolve, reject) => setTimeout(() => resolve(this._request(thisPage)), opts.delay * 1000))
+    return request
       .then(Parser.parse)
       .then(html => this._extract(html))
       .then(links => {
-        const childRequests = links.map(link =>
-          this.crawl({ depth: opts.depth - 1, page: link, ignore: opts.ignore.concat(opts.page) })
-        )
+        const childRequests = links.map(link => {
+          return Promise.all([this.exclusions.isAllowed(link), this.exclusions.delay])
+            .then(([isAllowed, delay]) =>
+              isAllowed ? this.crawl({ depth: opts.depth - 1, page: link, ignore: opts.ignore.concat(opts.page), delay }) : null
+            )
+        })
         
         return Promise.all(childRequests).then(children =>
           children.reduce((prev, cur) =>
@@ -109,5 +122,8 @@ class Spider extends Bot {
   }
 }
 
-const crawl = new Spider('http://localhost:8080').crawl({ depth: 4 })
+const crawl = new Spider('http://httpbin.org').crawl({ depth: 4 })
 crawl.then(results => console.log('Results', results))
+
+// const bot = new Exclusions('http://localhost:8080/robots.txt')
+// bot.isAllowed('/foo/bar').then(console.log)
