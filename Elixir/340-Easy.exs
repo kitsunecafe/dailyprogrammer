@@ -1,4 +1,4 @@
-defmodule RepeatingNumbers do
+defmodule Pattern do
   def count(input), do: count(%{}, 2, String.graphemes(input))
   def count(acc, count, input) when count == length(input), do: :maps.filter(fn _, v -> v > 1 end, acc)
   def count(acc, count, input) do
@@ -11,7 +11,7 @@ defmodule RepeatingNumbers do
 end
 
 Enum.each(
-  ["9870209870409898", "82156821568221", "11111011110111011", "98778912332145", "124489903108444899"],
-  fn x -> IO.inspect(RepeatingNumbers.count(x))
+  ["9870209870409898", "82156821568221", "11111011110111011", "98778912332145", "124489903108444899", "abcddbcaabab"],
+  fn x -> IO.inspect(Pattern.count(x))
   end
 )
