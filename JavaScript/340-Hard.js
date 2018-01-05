@@ -1,17 +1,6 @@
 'use strict'
 // https://www.reddit.com/r/dailyprogrammer/comments/7dlaeq/20171117_challenge_340_hard_write_a_web_crawler/
 
-/*
-  Your crawler MUST support the following features:
-
-    HTTP/1.1 client behaviors
-    GET requests are the only method you must support
-    Parse all links presented in HTML - anchors, images, scripts, etc
-    Take at least two options - a starting (seed) URL and a maximum depth to recurse to (e.g. "1" would be fetch the HTML page and all resources like images and script associated with it but don't visit any outgoing anchor links; a depth of "2" would visit the anchor links found on that first page only, etc ...)
-    Do not visit the same link more than once per session
-
-*/
-
 const Path = require('path')
 const Parser = require('parse5')
 const http = require('http')
