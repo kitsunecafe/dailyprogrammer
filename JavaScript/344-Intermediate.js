@@ -6,8 +6,8 @@ class Process {
     this.id = `P${id}`
     const halfLength = resources.length / 2
     this.allocated = resources.slice(0, halfLength)
-    this.max = resources.slice(-halfLength)
-    this.required = this.max.map((x, i) => x - this.allocated[i])
+    const max = resources.slice(-halfLength)
+    this.required = max.map((x, i) => x - this.allocated[i])
   }
 
   canExecute(available) {
