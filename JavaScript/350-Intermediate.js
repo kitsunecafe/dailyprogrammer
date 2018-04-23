@@ -8,7 +8,6 @@ function balance(n) {
   return r.reduce((prev, cur, i) => cur === l[i] ? prev.concat(i) : prev, [])
 }
 
-
 const tests = [
   '0 -3 5 -4 -2 3 1 0',
   '3 -2 2 0 3 4 -6 3 5 -4 8',
