@@ -3,15 +3,15 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 #[derive(Clone)]
-struct Bag<T> {
-    pub values: Vec<T>,
+struct Bag<'a, T> {
+    pub values: &'a [T],
     free: Vec<usize>,
     used: Vec<usize>,
     rng: ThreadRng,
 }
 
-impl<T: Clone> Bag<T> {
-    pub fn new(values: Vec<T>) -> Self {
+impl<'a, T: Clone> Bag<'a, T> {
+    pub fn new(values: &'a [T]) -> Self {
         let len = values.len();
 
         Self {
@@ -23,7 +23,7 @@ impl<T: Clone> Bag<T> {
     }
 }
 
-impl<T: Clone> Iterator for Bag<T> {
+impl<'a, T: Clone> Iterator for Bag<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
@@ -41,7 +41,7 @@ impl<T: Clone> Iterator for Bag<T> {
 }
 
 fn main() {
-    let tetrominos = Bag::new(vec!['O', 'I', 'S', 'Z', 'L', 'J', 'T'])
+    let tetrominos = Bag::new(vec!['O', 'I', 'S', 'Z', 'L', 'J', 'T'].as_slice())
         .take(50)
         .collect::<String>();
 
